@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Moq;
 using Xunit;
 
@@ -58,6 +58,74 @@ namespace MockingFrameworkOrManualMocks
             superMega.DoSomething();
 
             display.Verify(d => d.Show(It.IsAny<string>()), Times.Never);
+        }
+        
+        [Fact]
+        public void ManyCustomersWithSutBuilder()
+        {
+            var sutBuilder = SuperMegaUseCaseBuilder
+                .Create()
+                .RetrievesCustomers(new[] { "massimo", "matteo" });
+            
+            var superMega = sutBuilder.Build();
+            superMega.DoSomething();
+
+            sutBuilder.Display.Verify(d => d.Show("massimo"), Times.Once);
+            sutBuilder.Display.Verify(d => d.Show("matteo"), Times.Once);
+        }
+        
+        [Fact]
+        public void NoCustomerWithSutBuilder()
+        {
+            var sutBuilder = SuperMegaUseCaseBuilder
+                .Create()
+                .RetrievesCustomers(new string[0]);
+            
+            var superMega = sutBuilder.Build();
+            superMega.DoSomething();
+            
+            sutBuilder.Display.Verify(d => d.Show(It.IsAny<string>()), Times.Never);
+        }
+    }
+
+    public class SuperMegaUseCaseBuilder
+    {
+        public Mock<ICustomerRepo> CustomerRepo { get; }
+        public Mock<IDisplay> Display { get; }
+        
+        private SuperMegaUseCaseBuilder()
+        {
+            CustomerRepo = new Mock<ICustomerRepo>();
+            Display = new Mock<IDisplay>();
+        }
+
+        public static SuperMegaUseCaseBuilder Create()
+        {
+            return new SuperMegaUseCaseBuilder();
+        }
+
+        public SuperMegaUseCaseBuilder RetrievesCustomers(string[] customers)
+        {
+            CustomerRepo.LoadAll(customers);
+            return this;
+        }
+
+        public SuperMegaUseCase Build()
+        {
+            return new SuperMegaUseCase(CustomerRepo.Object, Display.Object);
+        }
+
+        public static implicit operator SuperMegaUseCase(SuperMegaUseCaseBuilder builder)
+        {
+            return builder.Build();
+        }
+    }
+
+    public static class MockCustomerRepoExtensions
+    {
+        public static void LoadAll(this Mock<ICustomerRepo> mockCustomerRepo, string[] customers)
+        {
+            mockCustomerRepo.Setup(x => x.LoadAll()).Returns(customers);
         }
     }
 
